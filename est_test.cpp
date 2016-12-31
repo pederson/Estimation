@@ -175,6 +175,18 @@ int main(int argc, char * argv[]){
 	}
 
 
+	SequentialFilter::UnscentedKalman ukf;
+	x = x0; x(0) = 4.9; x(1) = 0.25;
+	Pxx = Pxx0;
+	tprev=0.0;
+	cout << "UKF:, t, x1, x2, err1, err2, Pxx1, Pxx2" << endl;
+	for (auto k=0; k<tdat.length(); k++){
+		ekf.propagate(x, Pxx, tdat(k)-tprev, ~ Vector(zdat.row(k)), msmt, dyn, ctrl, pnoise);
+		cout << "UKF:, " << tdat(k) << ", " << x(0) << ", " << x(1) << ", " << x(0)-oscill(k,3) << ", " << x(1)-oscill(k,4) << ", " << Pxx(0,0) << ", " << Pxx(1,1) << endl;
+		tprev = tdat(k);
+	}
+
+
 
 	return 0;
 }
