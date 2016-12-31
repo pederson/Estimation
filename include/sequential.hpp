@@ -1,0 +1,97 @@
+#ifndef _SEQUENTIAL_H
+#define _SEQUENTIAL_H
+
+#include "../LinearAlgebra/Matrix.hpp"
+#include "../LinearAlgebra/LinearSolvers.hpp"
+
+#include "DynamicsModel.hpp"
+#include "ControlModel.hpp"
+#include "ProcessNoiseModel.hpp"
+#include "MeasurementModel.hpp"
+
+
+namespace SequentialFilter{
+
+// The Classical Kalman Filter (linear)
+class Kalman{
+public:
+
+	Kalman(){};
+
+	void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
+				   const MeasurementModel & msmt,
+				   const DynamicsModel & dyn,
+				   const ControlModel & ctrl,
+				   const ProcessNoiseModel & pnoise){
+
+		// propagate using the dynamics model, control and process noise
+		Matrix STM = dyn.get_stm(dt, x);
+		Vector u = ctrl.get_control(dt, x);
+		Matrix G = ctrl.get_gain(dt, x);
+		Vector vbar = pnoise.get_mean(dt, x);
+		Matrix Q = pnoise.get_covariance(dt, x);
+		Matrix PNTM = pnoise.get_pntm(dt, x);
+
+		// time update
+		m_prediction = STM*x + G*u + PNTM*vbar;
+		Matrix Pbar = STM*Pxx*(~STM) + PNTM*Q*(~PNTM);
+
+		// get data from measurement model
+		Matrix H = msmt.get_jacobian(dt, m_prediction);
+		Matrix R = msmt.get_covariance(dt, m_prediction);
+
+		//std::cout << "H" << H << std::endl;
+		//std::cout << "Pbar" << Pbar << std::endl;
+		//std::cout << "R" << R << std::endl;
+
+		// measurement update
+		Matrix K = Pbar*(~H)*inv(H*Pbar*(~H)+R);
+		m_postfit = K*(z-H*m_prediction)+m_prediction;
+		x = m_postfit;
+		Pxx = Pbar - K*H*Pbar;
+
+		
+	}
+
+	Vector postfit_resid(const Vector & z, const MeasurementModel & msmt) const;
+	Vector prediction_resid(const Vector & z, const MeasurementModel & msmt) const;
+
+private:
+
+	Vector m_prediction;
+	Vector m_postfit;
+
+};
+
+/*
+// The first-order nonlinear perturbation to the
+// Classical Kalman Filter
+class KalmanNonlin{
+
+};
+
+// The Extended Kalman Filter (Nonlinear)
+class ExtendedKalman{
+
+};
+
+// The Unscented Kalman Filter (Nonlinear)
+class UnscentedKalman{
+
+};
+
+// The Information Filter
+class Information{
+
+};
+
+// The Square-Root Information Filter
+class SqrtInformation{
+
+};
+*/
+
+}
+
+
+#endif
