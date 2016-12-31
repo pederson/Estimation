@@ -164,7 +164,7 @@ int main(int argc, char * argv[]){
 
 
 	SequentialFilter::ExtendedKalman ekf;
-	x = x0;
+	x = x0; x(0) = 4.9; x(1) = 0.25;
 	Pxx = Pxx0;
 	tprev=0.0;
 	cout << "EKF:, t, x1, x2, err1, err2, Pxx1, Pxx2" << endl;
