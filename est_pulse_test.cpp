@@ -5,6 +5,14 @@
 using namespace std;
 
 
+struct MatrixInverter{
+	static Matrix invert(const Matrix & m){
+		return inv(m);
+	}
+};
+
+
+
 class DynamicsOscillatorPulse : public DynamicsModel{
 public:
 	Matrix get_stm(double dt, const Vector & state) const{
@@ -128,7 +136,7 @@ int main(int argc, char * argv[]){
 
 
 	// build linear model and filter
-	SequentialFilter::Kalman ckf;
+	SequentialFilter::Kalman<MatrixInverter> ckf;
 	MeasurementOscillatorPulse msmt;
 	DynamicsOscillatorPulse dyn;
 	ProcessNoiseOscillatorPulse pnoise;

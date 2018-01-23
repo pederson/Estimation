@@ -13,48 +13,50 @@
 namespace SequentialFilter{
 
 // The Classical Kalman Filter (linear)
+template <typename MatrixInverter>
 class Kalman{
 public:
 
 	Kalman(){};
 
-	void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
+	template <typename MatrixT, typename VectorT>
+	static void propagate(VectorT & x, MatrixT & Pxx, double dt, VectorT z, 
 				   const MeasurementModel & msmt,
 				   const DynamicsModel & dyn,
 				   const ControlModel & ctrl,
 				   const ProcessNoiseModel & pnoise){
 
 		// propagate using the dynamics model, control and process noise
-		Matrix STM = dyn.get_stm(dt, x);
-		Vector u = ctrl.get_control(dt, x);
-		Matrix G = ctrl.get_gain(dt, x);
-		Vector vbar = pnoise.get_mean(dt, x);
-		Matrix Q = pnoise.get_covariance(dt, x);
-		Matrix PNTM = pnoise.get_pntm(dt, x);
+		MatrixT STM = dyn.get_stm(dt, x);
+		VectorT u = ctrl.get_control(dt, x);
+		MatrixT G = ctrl.get_gain(dt, x);
+		VectorT vbar = pnoise.get_mean(dt, x);
+		MatrixT Q = pnoise.get_covariance(dt, x);
+		MatrixT PNTM = pnoise.get_pntm(dt, x);
 
 		// time update
-		m_prediction = STM*x + G*u + PNTM*vbar;
-		Matrix Pbar = STM*Pxx*(~STM) + PNTM*Q*(~PNTM);
+		Vector m_prediction = STM*x + G*u + PNTM*vbar;
+		MatrixT Pbar = STM*Pxx*(~STM) + PNTM*Q*(~PNTM);
 
 		// get data from measurement model
-		Matrix H = msmt.get_jacobian(dt, m_prediction);
-		Matrix R = msmt.get_covariance(dt, m_prediction);
+		MatrixT H = msmt.get_jacobian(dt, m_prediction);
+		MatrixT R = msmt.get_covariance(dt, m_prediction);
 
 		// measurement update
-		Matrix K = Pbar*(~H)*inv(H*Pbar*(~H)+R);
-		m_postfit = K*(z-H*m_prediction)+m_prediction;
+		MatrixT K = Pbar*(~H)*MatrixInverter::invert(H*Pbar*(~H)+R);
+		Vector m_postfit = K*(z-H*m_prediction)+m_prediction;
 		x = m_postfit;
 		Pxx = Pbar - K*H*Pbar;
 		return;
 	}
 
-	Vector postfit_resid(const Vector & z, const MeasurementModel & msmt) const;
-	Vector prediction_resid(const Vector & z, const MeasurementModel & msmt) const;
+	// Vector postfit_resid(const Vector & z, const MeasurementModel & msmt) const;
+	// Vector prediction_resid(const Vector & z, const MeasurementModel & msmt) const;
 
 private:
 
-	Vector m_prediction;
-	Vector m_postfit;
+	// Vector m_prediction;
+	// Vector m_postfit;
 
 };
 
