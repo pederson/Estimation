@@ -28,6 +28,7 @@ public:
 				   const ControlModelT & ctrl,
 				   const ProcessNoiseModelT & pnoise){
 
+
 		// propagate using the dynamics model, control and process noise
 		Matrix STM = dyn.get_stm(dt, x);
 		Vector u = ctrl.get_control(dt, x);
@@ -35,6 +36,7 @@ public:
 		Vector vbar = pnoise.get_mean(dt, x);
 		Matrix Q = pnoise.get_covariance(dt, x);
 		Matrix PNTM = pnoise.get_pntm(dt, x);
+
 
 		// time update
 		Vector m_prediction = STM*x + G*u + PNTM*vbar;
