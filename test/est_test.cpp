@@ -1,11 +1,12 @@
-#include "include/sequential.hpp"
+#include <libra.h>
+#include "../estimation.h"
 
 #include <iostream>
 
 using namespace std;
 
 
-class DynamicsOscillator : public DynamicsModel{
+class DynamicsOscillator {
 public:
 	Matrix get_stm(double dt, const Vector & state) const{
 		Matrix STM(2,2);
@@ -25,7 +26,7 @@ private:
 };
 
 
-class ProcessNoiseOscillator : public ProcessNoiseModel{
+class ProcessNoiseOscillator {
 public:
 	Vector get_mean(double dt, const Vector & state) const{
 		Vector out(1);
@@ -48,7 +49,7 @@ private:
 	double omega=2.0;
 };
 
-class ZeroNoise : public ProcessNoiseModel{
+class ZeroNoise {
 public:
 	Vector get_mean(double dt, const Vector & state) const{
 		Vector out(1);
@@ -72,7 +73,7 @@ private:
 };
 
 
-class MeasurementOscillator : public MeasurementModel{
+class MeasurementOscillator {
 public:
 	Vector get_value(double dt, const Vector & state) const {
 		double rho = sqrt(state(0)*state(0)+height*height);
@@ -106,7 +107,7 @@ private:
 };
 
 
-class ZeroControl : public ControlModel{
+class ZeroControl {
 public:
 	Vector get_control(double dt, const Vector & state) const{
 		Vector out(state);
@@ -118,10 +119,17 @@ public:
 	}
 };
 
+
+struct MatrixInverter{
+	static Matrix invert(const Matrix & m){
+		return inv(m);
+	}
+};
+
 int main(int argc, char * argv[]){
 
 	// read data
-	Matrix oscill = dlmread("data/oscillator.dat");
+	Matrix oscill = dlmread("../data/oscillator.dat");
 	// cout << oscill << endl;
 	Vector tdat = oscill.col(0);
 	Vector rdat = oscill.col(1);
@@ -131,7 +139,7 @@ int main(int argc, char * argv[]){
 	zdat.col(1) = rrdat;
 
 	// build linear model and filter
-	SequentialFilter::Kalman ckf;
+	SequentialFilter::Kalman<Matrix, Vector, MatrixInverter>  ckf;
 	MeasurementOscillator msmt;
 	DynamicsOscillator dyn;
 	ProcessNoiseOscillator pnoise;
@@ -151,7 +159,7 @@ int main(int argc, char * argv[]){
 	}
 
 
-	SequentialFilter::KalmanNonlin nkf;
+	SequentialFilter::KalmanNonlin<Matrix, Vector, MatrixInverter> nkf;
 	x = x0;
 	Pxx = Pxx0;
 	tprev=0.0;
@@ -163,7 +171,7 @@ int main(int argc, char * argv[]){
 	}
 
 
-	SequentialFilter::ExtendedKalman ekf;
+	SequentialFilter::ExtendedKalman<Matrix, Vector, MatrixInverter> ekf;
 	x = x0; x(0) = 4.9; x(1) = 0.25;
 	Pxx = Pxx0;
 	tprev=0.0;
@@ -175,7 +183,7 @@ int main(int argc, char * argv[]){
 	}
 
 
-	SequentialFilter::UnscentedKalman ukf;
+	SequentialFilter::UnscentedKalman<Matrix, Vector, MatrixInverter> ukf;
 	x = x0; x(0) = 4.9; x(1) = 0.25;
 	Pxx = Pxx0;
 	tprev=0.0;

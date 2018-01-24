@@ -1,4 +1,8 @@
-#include "include/sequential.hpp"
+#include <libra.h>
+
+#include "../include/sequential.hpp"
+
+
 
 #include <iostream>
 
@@ -13,8 +17,10 @@ struct MatrixInverter{
 
 
 
-class DynamicsOscillatorPulse : public DynamicsModel{
+class DynamicsOscillatorPulse {
 public:
+	DynamicsOscillatorPulse(double omega0) : omega(omega0) {};
+
 	Matrix get_stm(double dt, const Vector & state) const{
 		Matrix STM(3,3);
 		STM.fill(0);
@@ -27,17 +33,18 @@ public:
 		STM(2,2) = 1.0;
 		return STM;
 	}
+
 	Vector propagate(double dt, const Vector & state, const Vector & control, const Vector & process_noise) const{
 		Matrix STM = get_stm(dt, state);
 		return STM*state;
 	}
 
 private:
-	double omega=6.2832e9;
+	double omega;
 };
 
 
-class ProcessNoiseOscillatorPulse : public ProcessNoiseModel{
+class ProcessNoiseOscillatorPulse {
 public:
 	Vector get_mean(double dt, const Vector & state) const{
 		Vector out(1);
@@ -57,34 +64,11 @@ public:
 	}
 
 private:
-	double omega=6.2832e9;
 };
 
-// class ZeroNoise : public ProcessNoiseModel{
-// public:
-// 	Vector get_mean(double dt, const Vector & state) const{
-// 		Vector out(1);
-// 		out(0) = 0;
-// 		return out;
-// 	}
-// 	Matrix get_covariance(double dt, const Vector & state) const{
-// 		Matrix cov(1,1);
-// 		cov(0,0) = 0;
-// 		return cov;
-// 	}
-// 	Matrix get_pntm(double dt, const Vector & state) const{
-// 		Matrix PNTM(2,1);
-// 		PNTM(0,0) = 0;
-// 		PNTM(1,0) = 0;
-// 		return PNTM;
-// 	}
-
-// private:
-// 	double omega=6.2832e9;
-// };
 
 
-class MeasurementOscillatorPulse : public MeasurementModel{
+class MeasurementOscillatorPulse{
 public:
 	Vector get_value(double dt, const Vector & state) const {
 		// double rho = sqrt(state(0)*state(0)+height*height);
@@ -113,7 +97,7 @@ private:
 };
 
 
-class ZeroControl : public ControlModel{
+class ZeroControl {
 public:
 	Vector get_control(double dt, const Vector & state) const{
 		Vector out(state);
@@ -125,10 +109,15 @@ public:
 	}
 };
 
+
+
+
+typedef SequentialFilter::Kalman<Matrix, Vector, MatrixInverter> Filter;
+
 int main(int argc, char * argv[]){
 
 	// read data
-	Matrix oscill = dlmread("data/oscillator_pulse.dat");
+	Matrix oscill = dlmread("../data/oscillator_pulse.dat");
 	// cout << oscill << endl;
 	Vector tdat = oscill.col(0);
 	Vector rdat = oscill.col(1);
@@ -136,9 +125,10 @@ int main(int argc, char * argv[]){
 
 
 	// build linear model and filter
-	SequentialFilter::Kalman<MatrixInverter> ckf;
+	// Filter ckf;
+	double omega = 6.2832e9;
 	MeasurementOscillatorPulse msmt;
-	DynamicsOscillatorPulse dyn;
+	DynamicsOscillatorPulse dyn(omega);
 	ProcessNoiseOscillatorPulse pnoise;
 	// ZeroNoise nonoise;
 	ZeroControl ctrl;
@@ -152,7 +142,7 @@ int main(int argc, char * argv[]){
 	for (auto k=0; k<tdat.length(); k++){
 		Vector ms(1);
 		ms(0) = rdat(k)*rdat(k);
-		ckf.propagate(x, Pxx, tdat(k)-tprev, ~ ms, msmt, dyn, ctrl, pnoise);
+		Filter::propagate(x, Pxx, tdat(k)-tprev, ~ ms, msmt, dyn, ctrl, pnoise);
 		cout << "CKF:, " << tdat(k) << ", " << x(0) << ", " << x(1) << ", " << x(2) << ", " << Pxx(0,0) << ", " << Pxx(1,1) << ", " << Pxx(2,2) << endl;
 		tprev = tdat(k);
 	}

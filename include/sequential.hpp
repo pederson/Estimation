@@ -1,49 +1,51 @@
 #ifndef _SEQUENTIAL_H
 #define _SEQUENTIAL_H
 
-#include "../LinearAlgebra/Matrix.hpp"
-#include "../LinearAlgebra/LinearSolvers.hpp"
-
-#include "DynamicsModel.hpp"
-#include "ControlModel.hpp"
-#include "ProcessNoiseModel.hpp"
-#include "MeasurementModel.hpp"
+#include <cmath> // for sqrt()
 
 
 namespace SequentialFilter{
 
+
+
+
+
+
 // The Classical Kalman Filter (linear)
-template <typename MatrixInverter>
+template <typename Matrix, 
+		  typename Vector,
+		  typename MatrixInverter>
 class Kalman{
 public:
 
-	Kalman(){};
-
-	template <typename MatrixT, typename VectorT>
-	static void propagate(VectorT & x, MatrixT & Pxx, double dt, VectorT z, 
-				   const MeasurementModel & msmt,
-				   const DynamicsModel & dyn,
-				   const ControlModel & ctrl,
-				   const ProcessNoiseModel & pnoise){
+	template <typename MeasurementModelT,
+			  typename DynamicsModelT,
+			  typename ControlModelT,
+			  typename ProcessNoiseModelT>
+	static void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
+				   const MeasurementModelT & msmt,
+				   const DynamicsModelT & dyn,
+				   const ControlModelT & ctrl,
+				   const ProcessNoiseModelT & pnoise){
 
 		// propagate using the dynamics model, control and process noise
-		MatrixT STM = dyn.get_stm(dt, x);
-		VectorT u = ctrl.get_control(dt, x);
-		MatrixT G = ctrl.get_gain(dt, x);
-		VectorT vbar = pnoise.get_mean(dt, x);
-		MatrixT Q = pnoise.get_covariance(dt, x);
-		MatrixT PNTM = pnoise.get_pntm(dt, x);
+		Matrix STM = dyn.get_stm(dt, x);
+		Vector u = ctrl.get_control(dt, x);
+		Matrix G = ctrl.get_gain(dt, x);
+		Vector vbar = pnoise.get_mean(dt, x);
+		Matrix Q = pnoise.get_covariance(dt, x);
+		Matrix PNTM = pnoise.get_pntm(dt, x);
 
 		// time update
 		Vector m_prediction = STM*x + G*u + PNTM*vbar;
-		MatrixT Pbar = STM*Pxx*(~STM) + PNTM*Q*(~PNTM);
+		Matrix Pbar = STM*Pxx*(~STM) + PNTM*Q*(~PNTM);
 
 		// get data from measurement model
-		MatrixT H = msmt.get_jacobian(dt, m_prediction);
-		MatrixT R = msmt.get_covariance(dt, m_prediction);
+		Matrix H = msmt.get_jacobian(dt, m_prediction);
+		Matrix R = msmt.get_covariance(dt, m_prediction);
 
 		// measurement update
-		MatrixT K = Pbar*(~H)*MatrixInverter::invert(H*Pbar*(~H)+R);
+		Matrix K = Pbar*(~H)*MatrixInverter::invert(H*Pbar*(~H)+R);
 		Vector m_postfit = K*(z-H*m_prediction)+m_prediction;
 		x = m_postfit;
 		Pxx = Pbar - K*H*Pbar;
@@ -62,16 +64,22 @@ private:
 
 // The first-order nonlinear perturbation to the
 // Classical Kalman Filter
+template <typename Matrix, 
+		  typename Vector,
+		  typename MatrixInverter>
 class KalmanNonlin{
 public:
 
-	KalmanNonlin(){};
 
-	void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
-				   const MeasurementModel & msmt,
-				   const DynamicsModel & dyn,
-				   const ControlModel & ctrl,
-				   const ProcessNoiseModel & pnoise){
+	template <typename MeasurementModelT,
+			  typename DynamicsModelT,
+			  typename ControlModelT,
+			  typename ProcessNoiseModelT>
+	static void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
+				   const MeasurementModelT & msmt,
+				   const DynamicsModelT & dyn,
+				   const ControlModelT & ctrl,
+				   const ProcessNoiseModelT & pnoise){
 
 		Vector dx(x); dx.fill(0);
 
@@ -82,7 +90,7 @@ public:
 		Matrix Q = pnoise.get_covariance(dt, x);
 		Matrix PNTM = pnoise.get_pntm(dt, x);
 		Matrix STM = dyn.get_stm(dt, x);
-		m_prediction = dyn.propagate(dt, x, u, vbar);
+		Vector m_prediction = dyn.propagate(dt, x, u, vbar);
 		
 		// time update
 		Vector dxbar = STM*dx + G*u + PNTM*vbar;
@@ -95,7 +103,7 @@ public:
 		Vector dz = z-h;
 
 		// measurement update
-		Matrix K = Pbar*(~H)*inv(H*Pbar*(~H)+R);
+		Matrix K = Pbar*(~H)*MatrixInverter::invert(H*Pbar*(~H)+R);
 		dx = K*(dz-H*dxbar)+dxbar;
 		x = m_prediction+dx;
 		Pxx = Pbar - K*H*Pbar;
@@ -103,27 +111,33 @@ public:
 		return;
 	}
 
-	Vector postfit_resid(const Vector & z, const MeasurementModel & msmt) const;
-	Vector prediction_resid(const Vector & z, const MeasurementModel & msmt) const;
+	// Vector postfit_resid(const Vector & z, const MeasurementModelT & msmt) const;
+	// Vector prediction_resid(const Vector & z, const MeasurementModelT & msmt) const;
 
 private:
 
-	Vector m_prediction;
-	Vector m_postfit;
+	// Vector m_prediction;
+	// Vector m_postfit;
 
 };
 
 
 // The Extended Kalman Filter (Nonlinear)
+template <typename Matrix, 
+		  typename Vector,
+		  typename MatrixInverter>
 class ExtendedKalman{
 public:
-	ExtendedKalman(){};
 
-	void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
-				   const MeasurementModel & msmt,
-				   const DynamicsModel & dyn,
-				   const ControlModel & ctrl,
-				   const ProcessNoiseModel & pnoise){
+	template <typename MeasurementModelT,
+			  typename DynamicsModelT,
+			  typename ControlModelT,
+			  typename ProcessNoiseModelT>
+	static void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
+				   const MeasurementModelT & msmt,
+				   const DynamicsModelT & dyn,
+				   const ControlModelT & ctrl,
+				   const ProcessNoiseModelT & pnoise){
 
 		// propagate using the dynamics model, control and process noise
 		Vector u = ctrl.get_control(dt, x);
@@ -132,7 +146,7 @@ public:
 		Matrix Q = pnoise.get_covariance(dt, x);
 		Matrix PNTM = pnoise.get_pntm(dt, x);
 		Matrix STM = dyn.get_stm(dt, x);
-		m_prediction = dyn.propagate(dt, x, u, vbar);
+		Vector m_prediction = dyn.propagate(dt, x, u, vbar);
 		
 		// time update
 		Matrix Pbar = STM*Pxx*(~STM) + PNTM*Q*(~PNTM);
@@ -143,34 +157,40 @@ public:
 		Vector dz = msmt.get_residual(m_prediction, z);
 
 		// measurement update
-		Matrix K = Pbar*(~H)*inv(H*Pbar*(~H)+R);
+		Matrix K = Pbar*(~H)*MatrixInverter::invert(H*Pbar*(~H)+R);
 		x = m_prediction + K*dz;
 		Pxx = Pbar - K*H*Pbar;
 
 		return;
 	}
 
-	Vector postfit_resid(const Vector & z, const MeasurementModel & msmt) const;
-	Vector prediction_resid(const Vector & z, const MeasurementModel & msmt) const;
+	// Vector postfit_resid(const Vector & z, const MeasurementModelT & msmt) const;
+	// Vector prediction_resid(const Vector & z, const MeasurementModelT & msmt) const;
 
 private:
 
-	Vector m_prediction;
-	Vector m_postfit;
+	// Vector m_prediction;
+	// Vector m_postfit;
 
 };
 
 
 // The Unscented Kalman Filter (Nonlinear)
+template <typename Matrix, 
+		  typename Vector,
+		  typename MatrixInverter>
 class UnscentedKalman{
 public:
-	UnscentedKalman(){};
 
-	void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
-				   const MeasurementModel & msmt,
-				   const DynamicsModel & dyn,
-				   const ControlModel & ctrl,
-				   const ProcessNoiseModel & pnoise){
+	template <typename MeasurementModelT,
+			  typename DynamicsModelT,
+			  typename ControlModelT,
+			  typename ProcessNoiseModelT>
+	static void propagate(Vector & x, Matrix & Pxx, double dt, Vector z, 
+				   const MeasurementModelT & msmt,
+				   const DynamicsModelT & dyn,
+				   const ControlModelT & ctrl,
+				   const ProcessNoiseModelT & pnoise){
 
 		// get requisite data from process noise and control
 		Vector v = pnoise.get_mean(dt, x);
@@ -219,15 +239,15 @@ public:
 		for (auto i=1; i<nsig; i++) Pxzbar += wi*(xi.subcol(i,0,n-1)-xbar)*~(Zi.col(i)-zbar);
 		
 		// measurement update
-		Matrix K = Pxzbar*inv(Pzzbar);
+		Matrix K = Pxzbar*MatrixInverter::invert(Pzzbar);
 		x = xbar + K*(z-zbar);
 		Pxx = Pxxbar - K*Pzzbar*~K;
 
 		return;
 	}
 
-	Vector postfit_resid(const Vector & z, const MeasurementModel & msmt) const;
-	Vector prediction_resid(const Vector & z, const MeasurementModel & msmt) const;
+	// Vector postfit_resid(const Vector & z, const MeasurementModelT & msmt) const;
+	// Vector prediction_resid(const Vector & z, const MeasurementModelT & msmt) const;
 
 private:
 
